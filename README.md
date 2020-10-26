@@ -1,2 +1,4 @@
 # ex1-thehatguy
-test 2
+thehatguy
+
+sol1.py
