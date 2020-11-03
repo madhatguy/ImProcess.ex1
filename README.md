@@ -1,4 +1,3 @@
-# ex1-thehatguy
 thehatguy
-
 sol1.py
+answer_q1.txt

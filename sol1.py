@@ -82,7 +82,7 @@ def rgb2yiq(imRGB):
 def yiq2rgb(imYIQ):
     """
     Converts a YIQ grayscale image to RGB color image
-    :param imRGB: An array containing the original image data
+    :param imYIQ: An array containing the original image data
     :return: An array containing the modified image data
     """
     inv_yiq = np.linalg.inv(YIQ)
@@ -134,9 +134,9 @@ def quantize(im_orig, n_quant, n_iter):
     for it in range(n_iter):
         prev_z = z.copy()
         for i in range(n_quant):
-            denum = orig_hist[z[i]:z[i + 1]].sum()
+            denom = orig_hist[z[i]:z[i + 1]].sum()
             num = sum(orig_hist[cur] * cur for cur in range(z[i], z[i + 1]))
-            q[i] = round(num / denum)  # todo - no round?
+            q[i] = round(num / denom)
             error[it] += sum(orig_hist[cur] * (cur - q[i]) ** SQUARE_POWER for cur in range(z[i], z[i + 1]))
         for i in range(n_quant - 1):
             z[i] = ((q[i] + q[i + 1]) / 2)
