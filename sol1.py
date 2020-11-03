@@ -4,14 +4,16 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 import imageio as imio
-import scipy as sp
 from skimage.color import rgb2gray
 
 WRONG_PATH_MSG = "Error: bad filename"
+INT_REP = "uint8"
+FLOAT_REP = "float64"
 MAX_VAL = 255
 SHADE_LEVELS = 256
 FIRST_IDX = 0
 LAST_IDX = -1
+GRAYSCALE_DIMS = 2
 SQUARE_POWER = 2
 GRAY = 1
 CHAN_1 = 0
@@ -32,9 +34,9 @@ def read_image(filename, representation):
     if not os.path.isfile(filename):
         sys.exit(WRONG_PATH_MSG)
     im_arr = imio.imread(filename)
-    im_arr = im_arr.astype("float64")
+    im_arr = im_arr.astype(FLOAT_REP)
     im_arr /= MAX_VAL
-    if representation == GRAY:  # todo - check whether the pic is already grey?
+    if representation == GRAY and im_arr.ndim > GRAYSCALE_DIMS:
         im_arr = rgb2gray(im_arr)
     return im_arr
 
@@ -48,6 +50,8 @@ def im_data_disp(im_arr, representation):
     """
     if representation == GRAY:
         plt.imshow(im_arr[..., [FIRST_IDX]], cmap=plt.cm.gray)
+    elif im_arr.ndim <= GRAYSCALE_DIMS:
+        plt.imshow(im_arr, cmap=plt.cm.gray)
     else:
         plt.imshow(im_arr)
     plt.show()
@@ -94,14 +98,19 @@ def histogram_equalize(im_orig):
     :param im_orig: The original image
     :return: A list containing the modified image, the original histogram and the histogram after the equalization
     """
-    grayscale = rgb2yiq(im_orig)  # todo - check whether the image is YIQ?
-    y = (grayscale[..., CHAN_1].copy() * MAX_VAL).astype("uint8")
+    if im_orig.ndim > GRAYSCALE_DIMS:
+        grayscale = rgb2yiq(im_orig)
+    else:
+        grayscale = im_orig.copy()
+    y = (grayscale[..., CHAN_1].copy() * MAX_VAL).astype(INT_REP)
     orig_hist, bins = np.histogram(y, SHADE_LEVELS)
     cum_hist = np.cumsum(orig_hist)
     min_val_amount = cum_hist[orig_hist.nonzero()[FIRST_IDX][FIRST_IDX]]
-    lut = (MAX_VAL * (cum_hist - min_val_amount) / (cum_hist[LAST_IDX] - min_val_amount)).round().astype("uint8")
-    grayscale[..., CHAN_1] = lut[y] / lut[y].max()  # todo - is this the right division?
-    res = yiq2rgb(grayscale)
+    lut = (MAX_VAL * (cum_hist - min_val_amount) / (cum_hist[LAST_IDX] - min_val_amount)).round().astype(INT_REP)
+    res = lut[y] / lut[y].max()
+    if im_orig.ndim > GRAYSCALE_DIMS:
+        grayscale[..., CHAN_1] = lut[y]
+        res = yiq2rgb(grayscale)
     return [res, orig_hist, np.histogram(y, SHADE_LEVELS)[FIRST_IDX]]
 
 
@@ -113,10 +122,13 @@ def quantize(im_orig, n_quant, n_iter):
     :param n_iter: The num of iterations to run the optimization stage
     :return: A list containing the modified image and an array of the error of each iteration
     """
-    grayscale = rgb2yiq(im_orig)
-    y = (grayscale[..., CHAN_1].copy() * MAX_VAL).astype("uint8")
+    if im_orig.ndim > GRAYSCALE_DIMS:
+        im_orig = rgb2yiq(im_orig)
+        y = (im_orig[..., CHAN_1] * MAX_VAL).astype(INT_REP)
+    else:
+        y = (im_orig.copy() * MAX_VAL).astype(INT_REP)
     orig_hist, bins = np.histogram(y, SHADE_LEVELS)
-    z = np.quantile(y, np.linspace(FIRST_IDX, 1, n_quant + 1)).astype("uint8")  # todo - smart choose
+    z = np.quantile(y, np.linspace(FIRST_IDX, 1, n_quant + 1)).astype(INT_REP)
     q = np.empty(n_quant)
     error = np.zeros(n_iter)
     for it in range(n_iter):
@@ -133,6 +145,8 @@ def quantize(im_orig, n_quant, n_iter):
     lut = [q[i] for i in range(n_quant) for j in range(z[i], z[i+1])]
     rem = [q[LAST_IDX]] * (SHADE_LEVELS - len(lut))
     lut = np.array(lut + rem)
-    grayscale[..., CHAN_1] = lut[y] / MAX_VAL
-    im_quant = yiq2rgb(grayscale)
+    im_quant = lut[y] / MAX_VAL
+    if im_orig.ndim > GRAYSCALE_DIMS:
+        im_orig[..., CHAN_1] = im_quant
+        im_quant = yiq2rgb(im_orig)
     return [im_quant, np.trim_zeros(error)]
