@@ -109,7 +109,7 @@ def histogram_equalize(im_orig):
     lut = (MAX_VAL * (cum_hist - min_val_amount) / (cum_hist[LAST_IDX] - min_val_amount)).round().astype(INT_REP)
     res = lut[y] / lut[y].max()
     if im_orig.ndim > GRAYSCALE_DIMS:
-        grayscale[..., CHAN_1] = lut[y]
+        grayscale[..., CHAN_1] = lut[y] / lut[y].max()
         res = yiq2rgb(grayscale)
     return [res, orig_hist, np.histogram(y, SHADE_LEVELS)[FIRST_IDX]]
 
@@ -142,7 +142,7 @@ def quantize(im_orig, n_quant, n_iter):
             z[i] = ((q[i] + q[i + 1]) / 2)
         if (z == prev_z).all:
             break
-    lut = [q[i] for i in range(n_quant) for j in range(z[i], z[i+1])]
+    lut = [q[i] for i in range(n_quant) for _ in range(z[i], z[i+1])]
     rem = [q[LAST_IDX]] * (SHADE_LEVELS - len(lut))
     lut = np.array(lut + rem)
     im_quant = lut[y] / MAX_VAL
