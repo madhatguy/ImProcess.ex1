@@ -1,5 +1,0 @@
-A1:
-
-The program would crash because of a ZeroDivisionError stemming
-from the q[i] calculation formula - the denominator is calculated
-in an accumulative manner and in such case would hold the value - 0.
